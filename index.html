@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScoreHub Pro - SMK Negeri 2 Tegalsari</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Inter:wght@400;700;900&display=swap');
+        
+        :root {
+            --bg-dark: #020617;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f8fafc;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden; 
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Latar Belakang Partikel */
+        .bg-animation {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+        }
+
+        .particle {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.1;
+            filter: blur(1px);
+            animation: float-particle linear infinite;
+        }
+
+        @keyframes float-particle {
+            from { transform: translateY(105vh) scale(1); }
+            to { transform: translateY(-10vh) scale(1.5); }
+        }
+
+        /* Glassmorphism */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        /* Transisi Halaman */
+        .page {
+            display: none;
+            height: 100vh;
+            width: 100vw;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .page.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Gaya Skor Dinamis */
+        .font-score { font-family: 'Chakra Petch', sans-serif; }
+        .score-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 1000px;
+        }
+
+        .score-text {
+            font-size: min(28vh, 22vw);
+            line-height: 0.8;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: inline-block;
+        }
+
+        .score-blue { text-shadow: 0 0 40px rgba(59, 130, 246, 0.3); color: #60a5fa; }
+        .score-red { text-shadow: 0 0 40px rgba(239, 68, 68, 0.3); color: #f87171; }
+
+        /* Animasi Pop Skor */
+        .score-pop {
+            animation: scorePop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes scorePop {
+            0% { transform: scale(0.8) translateY(20px); opacity: 0.5; filter: brightness(2); }
+            50% { transform: scale(1.1); opacity: 1; filter: brightness(1.5); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+
+        .glow-effect {
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            background: radial-gradient(circle, currentColor 0%, transparent 70%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .score-pop + .glow-effect {
+            animation: glowPulse 0.4s ease-out;
+        }
+
+        @keyframes glowPulse {
+            0% { opacity: 0.4; transform: scale(0.5); }
+            100% { opacity: 0; transform: scale(1.5); }
+        }
+
+        /* Gaya Tombol */
+        .btn-control {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+        .btn-control:active { transform: scale(0.9); }
+
+        .shining-box {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shining-box::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: skewX(-25deg);
+            animation: shining 4s infinite;
+        }
+
+        @keyframes shining {
+            0%, 80% { left: -100%; }
+            100% { left: 150%; }
+        }
+
+        /* Overlay Edit */
+        .editable {
+            position: relative;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .editable:hover {
+            outline: 2px dashed rgba(59, 130, 246, 0.5);
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
+
+        .edit-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(59, 130, 246, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            color: white;
+            font-size: 10px;
+            font-weight: 900;
+            z-index: 20;
+            border-radius: inherit;
+            pointer-events: none;
+            text-transform: uppercase;
+        }
+        .editable:hover .edit-overlay { opacity: 1; }
+
+        /* Dot Animation */
+        .dot-win {
+            animation: dotIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes dotIn {
+            from { transform: scale(0); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-animation" id="particleContainer"></div>
+
+    <!-- HALAMAN MENU UTAMA -->
+    <div id="menuPage" class="page active items-center justify-center p-6 text-center relative">
+        <div class="absolute top-6 right-6">
+            <button onclick="toggleFS()" class="p-4 glass-card rounded-2xl text-slate-400 hover:text-white transition-all hover:scale-110 active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+            </button>
+        </div>
+
+        <header class="mb-12">
+            <div class="inline-block p-4 bg-blue-500/10 rounded-3xl mb-6 border border-blue-500/20 shadow-2xl">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+            </div>
+            <h1 class="text-6xl font-black italic tracking-tighter text-white mb-2 uppercase">
+                SCORE<span class="text-blue-500">HUB</span> PRO
+            </h1>
+            <p class="text-slate-400 font-bold uppercase tracking-[0.4em] text-xs">By Humas SMK Negeri 2 Tegalsari</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
+            <button onclick="switchPage('badmintonPage')" class="group relative glass-card rounded-[3rem] p-10 transition-all duration-500 text-left overflow-hidden hover:border-blue-500/50 hover:scale-[1.02]">
+                <div class="bg-blue-500/20 p-5 rounded-3xl w-fit mb-8 group-hover:bg-blue-500/40 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="M4.93 19.07l2.83-2.83"/><path d="M16.24 7.76l2.83-2.83"/></svg>
+                </div>
+                <h3 class="text-3xl font-black text-white italic uppercase mb-2">Bulu Tangkis</h3>
+                <p class="text-slate-400 text-sm">Papan skor profesional dengan animasi dinamis, logo kustom, dan efek kemenangan.</p>
+            </button>
+
+            <button class="glass-card rounded-[3rem] p-10 text-left opacity-40 cursor-not-allowed">
+                <div class="bg-slate-500/20 p-5 rounded-3xl w-fit mb-8">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m21 12-9-9"/><path d="m21 12-9 9"/></svg>
+                </div>
+                <h3 class="text-3xl font-black text-white italic uppercase mb-2">Cabang Lain</h3>
+                <p class="text-slate-400 text-sm italic">Coming soon - Pengembangan fitur baru segera hadir.</p>
+            </button>
+        </div>
+    </div>
+
+    <!-- HALAMAN PAPAN SKOR BADMINTON -->
+    <div id="badmintonPage" class="page p-4 md:p-6 gap-4">
+        <header class="flex justify-between items-center px-6 py-3 glass-card rounded-2xl">
+            <div class="flex items-center gap-4">
+                <button onclick="switchPage('menuPage')" class="p-2 text-slate-400 hover:text-white transition-colors mr-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </button>
+                <div class="w-14 h-14 bg-white rounded-xl p-1 flex items-center justify-center relative editable shining-box" onclick="triggerUpload('mainLogoInput')">
+                    <img id="mainLogo" src="" alt="L" class="max-h-full" onerror="this.src='https://via.placeholder.com/60?text=LOGO'">
+                    <div class="edit-overlay">EDIT</div>
+                    <input type="file" id="mainLogoInput" class="hidden" onchange="updateLogo(this, 'main')">
+                </div>
+                <div>
+                    <div class="editable" onclick="editField('matchTitle')">
+                        <h1 id="matchTitle" class="text-lg md:text-xl font-black uppercase text-white leading-tight">Turnamen Persahabatan</h1>
+                        <div class="edit-overlay text-[8px]">KLIK EDIT</div>
+                    </div>
+                    <div class="editable" onclick="editField('subTitle')">
+                        <p id="subTitle" class="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Badminton Club SMK Negeri 2 Tegalsari</p>
+                        <div class="edit-overlay text-[8px]">KLIK EDIT</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-6">
+                <div class="text-right">
+                    <div id="clock" class="text-2xl md:text-3xl font-black font-mono text-white leading-none">00:00:00</div>
+                    <div id="fullDate" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Senin, 01 Jan 2024</div>
+                </div>
+                <button onclick="toggleFS()" class="p-2 text-slate-400 hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-grow grid grid-cols-2 gap-6 my-4">
+            <!-- Tim Kiri -->
+            <section class="glass-card rounded-[2.5rem] flex flex-col relative overflow-hidden border-t-4 border-blue-500/50">
+                <div class="p-8 flex flex-col items-center justify-between h-full">
+                    <div class="w-full flex justify-between items-center">
+                        <span class="bg-blue-600/20 text-blue-400 px-4 py-1 rounded-full text-[10px] font-black uppercase">Tuan Rumah</span>
+                        <div id="dots1" class="flex gap-2"></div>
+                    </div>
+                    <div class="flex flex-col items-center gap-4">
+                        <div class="w-20 h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center relative editable" onclick="triggerUpload('p1LogoInput')">
+                            <img id="p1Logo" src="" class="max-h-full max-w-full p-2" onerror="this.src='https://via.placeholder.com/100?text=TIM+1'">
+                            <div class="edit-overlay">EDIT</div>
+                            <input type="file" id="p1LogoInput" class="hidden" onchange="updateLogo(this, 'p1')">
+                        </div>
+                        <div class="editable p-2" onclick="editField('p1Name')">
+                            <h2 id="p1Name" class="text-2xl md:text-4xl font-black text-white uppercase tracking-tight">PEMAIN 1</h2>
+                            <div class="edit-overlay">KLIK EDIT</div>
+                        </div>
+                    </div>
+                    
+                    <div class="score-container text-blue-400">
+                        <div id="score1" class="font-score font-bold score-text score-blue select-none cursor-pointer" onclick="changeScore(1,1)">0</div>
+                        <div class="glow-effect"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 w-full max-w-xs">
+                        <button onclick="changeScore(1, 1)" class="btn-control bg-blue-600 hover:bg-blue-500 py-5 rounded-2xl text-2xl font-black text-white shadow-lg">+</button>
+                        <button onclick="changeScore(1, -1)" class="btn-control bg-slate-800/50 hover:bg-slate-700 py-5 rounded-2xl text-2xl font-black border border-white/5">-</button>
+                    </div>
+                </div>
+                <div class="bg-blue-500/10 py-3 px-10 flex justify-between items-center border-t border-blue-500/10">
+                    <span class="text-[10px] font-bold text-blue-400 uppercase">Set Menang</span>
+                    <span id="set1" class="font-score font-bold text-2xl text-blue-400">0</span>
+                </div>
+            </section>
+
+            <!-- Tim Kanan -->
+            <section class="glass-card rounded-[2.5rem] flex flex-col relative overflow-hidden border-t-4 border-red-500/50">
+                <div class="p-8 flex flex-col items-center justify-between h-full">
+                    <div class="w-full flex justify-between items-center">
+                        <div id="dots2" class="flex gap-2"></div>
+                        <span class="bg-red-600/20 text-red-400 px-4 py-1 rounded-full text-[10px] font-black uppercase">Tamu</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-4">
+                        <div class="w-20 h-20 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center relative editable" onclick="triggerUpload('p2LogoInput')">
+                            <img id="p2Logo" src="" class="max-h-full max-w-full p-2" onerror="this.src='https://via.placeholder.com/100?text=TIM+2'">
+                            <div class="edit-overlay">EDIT</div>
+                            <input type="file" id="p2LogoInput" class="hidden" onchange="updateLogo(this, 'p2')">
+                        </div>
+                        <div class="editable p-2" onclick="editField('p2Name')">
+                            <h2 id="p2Name" class="text-2xl md:text-4xl font-black text-white uppercase tracking-tight">PEMAIN 2</h2>
+                            <div class="edit-overlay">KLIK EDIT</div>
+                        </div>
+                    </div>
+
+                    <div class="score-container text-red-400">
+                        <div id="score2" class="font-score font-bold score-text score-red select-none cursor-pointer" onclick="changeScore(2,1)">0</div>
+                        <div class="glow-effect"></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 w-full max-w-xs">
+                        <button onclick="changeScore(2, 1)" class="btn-control bg-red-600 hover:bg-red-500 py-5 rounded-2xl text-2xl font-black text-white shadow-lg">+</button>
+                        <button onclick="changeScore(2, -1)" class="btn-control bg-slate-800/50 hover:bg-slate-700 py-5 rounded-2xl text-2xl font-black border border-white/5">-</button>
+                    </div>
+                </div>
+                <div class="bg-red-500/10 py-3 px-10 flex justify-between items-center border-t border-red-500/10">
+                    <span class="text-[10px] font-bold text-red-400 uppercase">Set Menang</span>
+                    <span id="set2" class="font-score font-bold text-2xl text-red-400">0</span>
+                </div>
+            </section>
+        </div>
+
+        <footer class="flex justify-center items-center gap-4 pb-2">
+            <button onclick="resetMatch()" class="btn-control px-8 py-3 bg-slate-800 hover:bg-red-600/20 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5">Reset Match</button>
+            <button onclick="swapSides()" class="btn-control px-8 py-3 bg-slate-800 hover:bg-blue-600/20 rounded-xl text-[10px] font-black uppercase tracking-widest border border-white/5">Tukar Posisi</button>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border border-white/10 p-8 rounded-3xl w-full max-w-md">
+            <h3 class="text-xl font-black mb-4 uppercase text-white">Edit Informasi</h3>
+            <input type="text" id="modalInput" class="w-full bg-black/50 border border-white/10 p-4 rounded-xl text-white mb-6 focus:border-blue-500 outline-none font-bold">
+            <div class="flex gap-3">
+                <button onclick="closeModal()" class="flex-1 py-4 bg-slate-800 rounded-xl text-white font-black text-xs uppercase">Batal</button>
+                <button onclick="saveModal()" class="flex-1 py-4 bg-blue-600 rounded-xl text-white font-black text-xs uppercase shadow-lg shadow-blue-600/20">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Pemenang dengan Animasi Confetti Massive -->
+    <div id="winnerModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl hidden flex-col items-center justify-center z-[60] p-4 text-center">
+        <div class="mb-10 text-yellow-500 animate-bounce">
+            <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+        </div>
+        <h2 class="text-slate-400 font-bold uppercase text-xs mb-4 tracking-widest">Pemenang Pertandingan</h2>
+        <div id="winnerNameDisplay" class="text-5xl md:text-8xl font-black text-white mb-12 uppercase drop-shadow-2xl">PEMAIN 1</div>
+        <button onclick="closeWinnerModal()" class="px-16 py-5 bg-white text-black font-black uppercase rounded-full tracking-widest hover:scale-105 transition-all">Selesai</button>
+    </div>
+
+    <script>
+        // Data State
+        let state = {
+            matchTitle: "Turnamen Persahabatan",
+            subTitle: "Badminton Club SMK Negeri 2 Tegalsari",
+            p1Name: "PEMAIN 1", p2Name: "PEMAIN 2",
+            s1: 0, s2: 0, set1: 0, set2: 0,
+            logos: { main: '', p1: '', p2: '' },
+            isMatchOver: false
+        };
+
+        let currentTarget = '';
+        let confettiInterval = null;
+
+        function triggerUpload(id) {
+            document.getElementById(id).click();
+        }
+
+        function switchPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const h = now.getHours().toString().padStart(2, '0');
+            const m = now.getMinutes().toString().padStart(2, '0');
+            const s = now.getSeconds().toString().padStart(2, '0');
+            const clockEl = document.getElementById('clock');
+            if(clockEl) clockEl.innerText = `${h}:${m}:${s}`;
+            
+            const dateEl = document.getElementById('fullDate');
+            if(dateEl) {
+                const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+                dateEl.innerText = now.toLocaleDateString('id-ID', options);
+            }
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function createParticles() {
+            const container = document.getElementById('particleContainer');
+            for (let i = 0; i < 40; i++) {
+                const p = document.createElement('div');
+                p.className = 'particle';
+                const size = Math.random() * 3 + 1;
+                p.style.width = p.style.height = `${size}px`;
+                p.style.left = `${Math.random() * 100}vw`;
+                p.style.animationDuration = `${Math.random() * 10 + 5}s`;
+                p.style.animationDelay = `${Math.random() * 5}s`;
+                container.appendChild(p);
+            }
+        }
+        createParticles();
+
+        function updateUI(animatedPlayer = null) {
+            if (document.getElementById('matchTitle')) {
+                document.getElementById('matchTitle').innerText = state.matchTitle;
+                document.getElementById('subTitle').innerText = state.subTitle;
+                document.getElementById('p1Name').innerText = state.p1Name;
+                document.getElementById('p2Name').innerText = state.p2Name;
+                
+                const s1El = document.getElementById('score1');
+                const s2El = document.getElementById('score2');
+                
+                if (animatedPlayer === 1) {
+                    s1El.classList.remove('score-pop');
+                    void s1El.offsetWidth; 
+                    s1El.classList.add('score-pop');
+                } else if (animatedPlayer === 2) {
+                    s2El.classList.remove('score-pop');
+                    void s2El.offsetWidth; 
+                    s2El.classList.add('score-pop');
+                }
+
+                s1El.innerText = state.s1;
+                s2El.innerText = state.s2;
+                document.getElementById('set1').innerText = state.set1;
+                document.getElementById('set2').innerText = state.set2;
+
+                if(state.logos.main) document.getElementById('mainLogo').src = state.logos.main;
+                if(state.logos.p1) document.getElementById('p1Logo').src = state.logos.p1;
+                if(state.logos.p2) document.getElementById('p2Logo').src = state.logos.p2;
+
+                renderDots();
+                checkMatchWinner();
+            }
+            localStorage.setItem('badminton_v8_anim', JSON.stringify(state));
+        }
+
+        function renderDots() {
+            const d1 = document.getElementById('dots1');
+            const d2 = document.getElementById('dots2');
+            if(!d1 || !d2) return;
+            d1.innerHTML = d2.innerHTML = '';
+            for(let i=0; i<3; i++){
+                const dot1 = document.createElement('div');
+                dot1.className = `w-2.5 h-2.5 rounded-full ${i < state.set1 ? 'bg-blue-500 shadow-lg dot-win' : 'bg-slate-700'}`;
+                d1.appendChild(dot1);
+
+                const dot2 = document.createElement('div');
+                dot2.className = `w-2.5 h-2.5 rounded-full ${i < state.set2 ? 'bg-red-500 shadow-lg dot-win' : 'bg-slate-700'}`;
+                d2.appendChild(dot2);
+            }
+        }
+
+        function changeScore(p, amt) {
+            if(state.isMatchOver) return;
+            
+            if(p === 1) state.s1 = Math.max(0, Math.min(30, state.s1 + amt));
+            else state.s2 = Math.max(0, Math.min(30, state.s2 + amt));
+            
+            if((state.s1 >= 21 || state.s2 >= 21) && Math.abs(state.s1 - state.s2) >= 2 || state.s1 === 30 || state.s2 === 30) {
+                if(state.s1 > state.s2) state.set1++; else state.set2++;
+                state.s1 = 0; state.s2 = 0;
+                updateUI();
+            } else {
+                updateUI(amt > 0 ? p : null);
+            }
+        }
+
+        function checkMatchWinner() {
+            if(!state.isMatchOver && (state.set1 >= 2 || state.set2 >= 2)) {
+                state.isMatchOver = true;
+                const winner = state.set1 >= 2 ? state.p1Name : state.p2Name;
+                const winnerColor = state.set1 >= 2 ? '#60a5fa' : '#f87171';
+                
+                document.getElementById('winnerNameDisplay').innerText = winner;
+                
+                setTimeout(() => {
+                    document.getElementById('winnerModal').classList.replace('hidden', 'flex');
+                    launchMassiveConfetti(winnerColor);
+                }, 500);
+            }
+        }
+
+        function launchMassiveConfetti(color) {
+            const duration = 5 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 45, spread: 360, ticks: 60, zIndex: 100, colors: [color, '#ffffff', '#ffd700'] };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            // Interval untuk "penyemprotan" berulang
+            confettiInterval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(confettiInterval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+                
+                // Meriam Kiri
+                confetti(Object.assign({}, defaults, { 
+                    particleCount, 
+                    origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+                    gravity: 1.2,
+                    scalar: 1.2,
+                    drift: 1
+                }));
+                
+                // Meriam Kanan
+                confetti(Object.assign({}, defaults, { 
+                    particleCount, 
+                    origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+                    gravity: 1.2,
+                    scalar: 1.2,
+                    drift: -1
+                }));
+                
+                // Meriam Bawah (Semprotan ke atas)
+                confetti({
+                    ...defaults,
+                    particleCount: 20,
+                    origin: { x: 0.5, y: 1 },
+                    spread: 80,
+                    startVelocity: 60
+                });
+            }, 250);
+        }
+
+        function closeWinnerModal() {
+            if(confettiInterval) clearInterval(confettiInterval);
+            document.getElementById('winnerModal').classList.replace('flex', 'hidden');
+        }
+
+        function resetMatch() {
+            if(confirm('Ulangi pertandingan?')) {
+                state.s1 = state.s2 = state.set1 = state.set2 = 0;
+                state.isMatchOver = false;
+                if(confettiInterval) clearInterval(confettiInterval);
+                updateUI();
+            }
+        }
+
+        function swapSides() {
+            [state.p1Name, state.p2Name] = [state.p2Name, state.p1Name];
+            [state.s1, state.s2] = [state.s2, state.s1];
+            [state.set1, state.set2] = [state.set2, state.set1];
+            [state.logos.p1, state.logos.p2] = [state.logos.p2, state.logos.p1];
+            updateUI();
+        }
+
+        function updateLogo(input, key) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => { state.logos[key] = e.target.result; updateUI(); };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function editField(target) {
+            currentTarget = target;
+            document.getElementById('modalInput').value = state[target];
+            document.getElementById('modal').classList.replace('hidden', 'flex');
+            setTimeout(() => document.getElementById('modalInput').focus(), 100);
+        }
+
+        function saveModal() {
+            state[currentTarget] = document.getElementById('modalInput').value;
+            document.getElementById('modal').classList.replace('flex', 'hidden');
+            updateUI();
+        }
+
+        function closeModal() { document.getElementById('modal').classList.replace('flex', 'hidden'); }
+
+        function toggleFS() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        // Load Data
+        const saved = localStorage.getItem('badminton_v8_anim');
+        if(saved) state = {...state, ...JSON.parse(saved)};
+        updateUI();
+
+    </script>
+</body>
+</html>
